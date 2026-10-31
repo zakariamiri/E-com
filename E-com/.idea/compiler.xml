@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="Gateway-service" />
+        <module name="Discovery-service" />
+        <module name="config-service" />
+      </profile>
+      <profile name="Annotation profile for Product-service" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.48/lombok-1.18.48.jar" />
+        </processorPath>
+        <module name="Notification-service" />
+        <module name="Order-service" />
+        <module name="Cart-service" />
+        <module name="Auth-service" />
+        <module name="Payment-service" />
+        <module name="Product-service" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="Auth-service" options="-parameters" />
+      <module name="Cart-service" options="-parameters" />
+      <module name="Discovery-service" options="-parameters" />
+      <module name="Gateway-service" options="-parameters" />
+      <module name="Notification-service" options="-parameters" />
+      <module name="Order-service" options="-parameters" />
+      <module name="Payment-service" options="-parameters" />
+      <module name="Product-service" options="-parameters" />
+      <module name="config-service" options="-parameters" />
+    </option>
+  </component>
+</project>
