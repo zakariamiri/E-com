@@ -1,0 +1,659 @@
+{
+  "info": {
+    "name": "E-com V1 | Auth-service et Payment-service",
+    "description": "Démarrer Auth-service et Payment-service avec le profil local et leurs bases PostgreSQL séparées. Exécuter chaque dossier dans l'ordre via le Collection Runner. Les requêtes de création génèrent les identifiants et les requêtes de suppression nettoient les données de test. Le mot de passe dans les requêtes Auth est une donnée fictive de test.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "authBaseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "paymentBaseUrl",
+      "value": "http://localhost:8085"
+    },
+    {
+      "key": "userEmail",
+      "value": ""
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "paymentId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth-service",
+      "item": [
+        {
+          "name": "Créer un utilisateur",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{authBaseUrl}}/api/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Rim\",\n  \"lastName\": \"Test\",\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"Demo-V1-2026!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.unset(\"userId\");",
+                  "pm.collectionVariables.set(\"userEmail\", pm.variables.replaceIn(\"v1-{{$guid}}@example.test\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Utilisateur créé avec le rôle USER et sans mot de passe\", () => {",
+                  "    const user = pm.response.json();",
+                  "    pm.expect(user.id).to.be.a(\"number\");",
+                  "    pm.expect(user.email).to.equal(pm.collectionVariables.get(\"userEmail\"));",
+                  "    pm.expect(user.roles).to.include(\"USER\");",
+                  "    pm.expect(user).not.to.have.property(\"password\");",
+                  "    pm.expect(user).not.to.have.property(\"passwordHash\");",
+                  "    pm.collectionVariables.set(\"userId\", String(user.id));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refuser un email déjà utilisé",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{authBaseUrl}}/api/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Rim\",\n  \"lastName\": \"Test\",\n  \"email\": \"{{duplicateEmail}}\",\n  \"password\": \"Demo-V1-2026!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set(\"duplicateEmail\", pm.collectionVariables.get(\"userEmail\").toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refuser un email invalide",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{authBaseUrl}}/api/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Rim\",\n  \"lastName\": \"Test\",\n  \"email\": \"adresse-invalide\",\n  \"password\": \"Demo-V1-2026!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lister les utilisateurs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{authBaseUrl}}/api/users"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"La liste contient le compte créé\", () => {",
+                  "    const ids = pm.response.json().map(user => String(user.id));",
+                  "    pm.expect(ids).to.include(pm.collectionVariables.get(\"userId\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consulter un utilisateur",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{authBaseUrl}}/api/users/{{userId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Le compte consulté correspond à la création\", () => {",
+                  "    const user = pm.response.json();",
+                  "    pm.expect(String(user.id)).to.equal(pm.collectionVariables.get(\"userId\"));",
+                  "    pm.expect(user.email).to.equal(pm.collectionVariables.get(\"userEmail\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Modifier un utilisateur",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{authBaseUrl}}/api/users/{{userId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Rim modifiée\",\n  \"lastName\": \"Test\",\n  \"email\": \"{{userEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Le nouveau prénom est renvoyé\", () => pm.expect(pm.response.json().firstName).to.equal(\"Rim modifiée\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vérifier la modification",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{authBaseUrl}}/api/users/{{userId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Le nouveau prénom a été enregistré\", () => pm.expect(pm.response.json().firstName).to.equal(\"Rim modifiée\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Supprimer un utilisateur",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{authBaseUrl}}/api/users/{{userId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vérifier la suppression",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{authBaseUrl}}/api/users/{{userId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payment-service",
+      "item": [
+        {
+          "name": "Créer un paiement",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{paymentBaseUrl}}/api/payments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 42,\n  \"amount\": 149.9\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.unset(\"paymentId\");"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Le paiement est créé en PENDING\", () => {",
+                  "    const payment = pm.response.json();",
+                  "    pm.expect(payment.id).to.be.a(\"number\");",
+                  "    pm.expect(payment.orderId).to.equal(42);",
+                  "    pm.expect(payment.amount).to.equal(149.90);",
+                  "    pm.expect(payment.status).to.equal(\"PENDING\");",
+                  "    pm.collectionVariables.set(\"paymentId\", String(payment.id));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refuser un montant nul",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{paymentBaseUrl}}/api/payments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 42,\n  \"amount\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refuser un montant négatif",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{paymentBaseUrl}}/api/payments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 42,\n  \"amount\": -1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refuser plus de deux décimales",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{paymentBaseUrl}}/api/payments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": 42,\n  \"amount\": 1.001\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refuser une requête sans orderId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{paymentBaseUrl}}/api/payments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 149.9\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Lister les paiements",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{paymentBaseUrl}}/api/payments"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"La liste contient le paiement créé\", () => {",
+                  "    const ids = pm.response.json().map(payment => String(payment.id));",
+                  "    pm.expect(ids).to.include(pm.collectionVariables.get(\"paymentId\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consulter un paiement",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{paymentBaseUrl}}/api/payments/{{paymentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Le paiement consulté est celui qui vient d’être créé\", () => {",
+                  "    pm.expect(String(pm.response.json().id)).to.equal(pm.collectionVariables.get(\"paymentId\"));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirmer le paiement simulé",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{paymentBaseUrl}}/api/payments/{{paymentId}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"SUCCEEDED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Le paiement est confirmé\", () => pm.expect(pm.response.json().status).to.equal(\"SUCCEEDED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refuser de modifier un statut final",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{paymentBaseUrl}}/api/payments/{{paymentId}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"FAILED\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vérifier le statut enregistré",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{paymentBaseUrl}}/api/payments/{{paymentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Le statut enregistré reste SUCCEEDED\", () => pm.expect(pm.response.json().status).to.equal(\"SUCCEEDED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Supprimer un paiement",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{paymentBaseUrl}}/api/payments/{{paymentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 204\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vérifier la suppression",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{paymentBaseUrl}}/api/payments/{{paymentId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
