@@ -1,0 +1,63 @@
+{
+  "info": {
+    "name": "Product-service - MVP",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "productBaseUrl", "value": "http://localhost:8086" },
+    { "key": "categoryId", "value": "1" },
+    { "key": "productId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Créer une catégorie",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Ordinateurs\",\n  \"description\": \"Catalogue informatique\",\n  \"parentId\": null\n}"
+        },
+        "url": "{{productBaseUrl}}/api/categories"
+      }
+    },
+    {
+      "name": "Créer un produit",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Laptop Pro\",\n  \"description\": \"Ordinateur de démonstration\",\n  \"brand\": \"DemoBrand\",\n  \"sku\": \"LAP-001\",\n  \"price\": 899.90,\n  \"stockQuantity\": 10,\n  \"status\": \"PUBLISHED\",\n  \"categoryId\": {{categoryId}}\n}"
+        },
+        "url": "{{productBaseUrl}}/api/products"
+      }
+    },
+    {
+      "name": "Lister les produits",
+      "request": { "method": "GET", "url": "{{productBaseUrl}}/api/products" }
+    },
+    {
+      "name": "Rechercher un produit",
+      "request": { "method": "GET", "url": "{{productBaseUrl}}/api/products?search=laptop" }
+    },
+    {
+      "name": "Réserver du stock",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"quantity\": 2\n}" },
+        "url": "{{productBaseUrl}}/api/products/{{productId}}/stock/reserve"
+      }
+    },
+    {
+      "name": "Libérer du stock",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": { "mode": "raw", "raw": "{\n  \"quantity\": 2\n}" },
+        "url": "{{productBaseUrl}}/api/products/{{productId}}/stock/release"
+      }
+    }
+  ]
+}
