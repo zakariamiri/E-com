@@ -3,6 +3,7 @@ package org.sid.Auth_service.service;
 import org.sid.Auth_service.dto.CreateUserRequest;
 import org.sid.Auth_service.dto.UpdateUserRequest;
 import org.sid.Auth_service.dto.UserResponse;
+import org.sid.Auth_service.dto.UserSummaryResponse;
 import org.sid.Auth_service.entity.Role;
 import org.sid.Auth_service.entity.User;
 import org.sid.Auth_service.repository.RoleRepository;
@@ -55,6 +56,11 @@ public class UserService {
 
     public List<UserResponse> findAll() {
         return users.findAll().stream().map(this::toResponse).toList();
+    }
+
+    public UserSummaryResponse findSummary(Long id) {
+        User user = requireUser(id);
+        return new UserSummaryResponse(user.getId(), user.getEmail(), user.isEnabled());
     }
 
     public UserResponse findById(Long id) {

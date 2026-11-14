@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.sid.Auth_service.dto.CreateUserRequest;
 import org.sid.Auth_service.dto.UpdateUserRequest;
 import org.sid.Auth_service.dto.UserResponse;
+import org.sid.Auth_service.dto.UserSummaryResponse;
 import org.sid.Auth_service.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -43,6 +44,11 @@ public class UserController {
     @GetMapping("/{id}")
     public UserResponse findById(@PathVariable("id") Long id) {
         return users.findById(id);
+    }
+
+    @GetMapping("/{id}/summary")
+    public UserSummaryResponse findSummary(@PathVariable("id") Long id) {
+        return users.findSummary(id);
     }
 
     @PutMapping("/{id}")

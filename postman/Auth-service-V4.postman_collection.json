@@ -1,0 +1,123 @@
+{
+  "info": {
+    "name": "E-com V4 - Auth-service",
+    "description": "Exécuter dans l’ordre avec Auth-service démarré. La collection crée et supprime son propre utilisateur.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "authBaseUrl",
+      "value": "http://localhost:8081"
+    },
+    {
+      "key": "userId",
+      "value": ""
+    },
+    {
+      "key": "demoEmail",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Créer un utilisateur de démonstration",
+      "request": {
+        "method": "POST",
+        "url": "{{authBaseUrl}}/api/users",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"firstName\": \"Rim\",\n  \"lastName\": \"Demo\",\n  \"email\": \"{{demoEmail}}\",\n  \"password\": \"V4-Demo-123!\"\n}"
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.unset('userId');",
+              "pm.collectionVariables.set('demoEmail', 'auth-v4-' + pm.variables.replaceIn('{{$guid}}') + '@example.com');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Utilisateur créé', () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) pm.collectionVariables.set('userId', String(pm.response.json().id));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lire le résumé utilisateur",
+      "request": {
+        "method": "GET",
+        "url": "{{authBaseUrl}}/api/users/{{userId}}/summary"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Utilisateur trouvé', () => pm.response.to.have.status(200));",
+              "pm.test('Contrat utilisateur pour OpenFeign', () => {",
+              "  const user = pm.response.json();",
+              "  pm.expect(user).to.have.all.keys('id', 'email', 'enabled');",
+              "  pm.expect(String(user.id)).to.eql(pm.collectionVariables.get('userId'));",
+              "  pm.expect(user.email).to.eql(pm.collectionVariables.get('demoEmail'));",
+              "  pm.expect(user.enabled).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Supprimer l’utilisateur de démonstration",
+      "request": {
+        "method": "DELETE",
+        "url": "{{authBaseUrl}}/api/users/{{userId}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Utilisateur supprimé', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lire le résumé d’un utilisateur supprimé",
+      "request": {
+        "method": "GET",
+        "url": "{{authBaseUrl}}/api/users/{{userId}}/summary"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Référence utilisateur introuvable', () => pm.response.to.have.status(404));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
