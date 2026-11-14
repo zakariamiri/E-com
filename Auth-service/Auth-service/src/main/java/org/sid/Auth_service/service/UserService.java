@@ -8,6 +8,8 @@ import org.sid.Auth_service.entity.Role;
 import org.sid.Auth_service.entity.User;
 import org.sid.Auth_service.repository.RoleRepository;
 import org.sid.Auth_service.repository.UserRepository;
+import org.sid.Auth_service.event.UserCreatedEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,11 +32,13 @@ public class UserService {
 
     private final UserRepository users;
     private final RoleRepository roles;
+    private final ApplicationEventPublisher events;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public UserService(UserRepository users, RoleRepository roles) {
+    public UserService(UserRepository users, RoleRepository roles, ApplicationEventPublisher events) {
         this.users = users;
         this.roles = roles;
+        this.events = events;
     }
 
     @Transactional
@@ -51,7 +56,10 @@ public class UserService {
         user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.password()));
         user.getRoles().add(defaultRole());
-        return toResponse(saveUser(user));
+        User saved = saveUser(user);
+        events.publishEvent(new UserCreatedEvent(UUID.randomUUID(), "USER_CREATED",
+                saved.getId(), saved.getEmail(), saved.getCreatedAt()));
+        return toResponse(saved);
     }
 
     public List<UserResponse> findAll() {
