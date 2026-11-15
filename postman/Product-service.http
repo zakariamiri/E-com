@@ -1,0 +1,57 @@
+# Product-service - MVP
+
+###
+@productBaseUrl =http://localhost:8086
+# @name Créer une catégorie
+POST {{productBaseUrl}}/api/categories
+Content-Type: application/json
+
+{
+  "name": "Ordinateurs",
+  "description": "Catalogue informatique",
+  "parentId": null
+}
+
+###
+@categoryId =1
+# @name Créer un produit
+POST {{productBaseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Laptop Pro",
+  "description": "Ordinateur de démonstration",
+  "brand": "DemoBrand",
+  "sku": "LAP-001",
+  "price": 899.90,
+  "stockQuantity": 10,
+  "status": "PUBLISHED",
+  "categoryId": {{categoryId}}
+}
+
+###
+# @name Lister les produits
+GET {{productBaseUrl}}/api/products
+
+###
+# @name Rechercher un produit
+GET {{productBaseUrl}}/api/products?
+    search=laptop
+
+###
+# @name Réserver du stock
+PATCH {{productBaseUrl}}/api/products/{{productId}}/stock/reserve
+Content-Type: application/json
+
+{
+  "quantity": 2
+}
+
+###
+# @name Libérer du stock
+PATCH {{productBaseUrl}}/api/products/{{productId}}/stock/release
+Content-Type: application/json
+
+{
+  "quantity": 2
+}

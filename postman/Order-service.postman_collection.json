@@ -1,0 +1,65 @@
+{
+  "info": {
+    "name": "Order-service - MVP",
+    "description": "Créer, consulter et annuler des commandes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "orderBaseUrl", "value": "http://localhost:8084" },
+    { "key": "customerId", "value": "1" },
+    { "key": "productId", "value": "1" },
+    { "key": "quantity", "value": "2" },
+    { "key": "orderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Créer une commande",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "{{$guid}}" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"customerId\": {{customerId}},\n  \"shippingAddress\": \"12 rue de Démonstration, Casablanca\",\n  \"items\": [\n    {\n      \"productId\": {{productId}},\n      \"quantity\": {{quantity}}\n    }\n  ]\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{orderBaseUrl}}/api/orders"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Commande créée', () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) { pm.collectionVariables.set('orderId', String(pm.response.json().id)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consulter une commande",
+      "request": {
+        "method": "GET",
+        "url": "{{orderBaseUrl}}/api/orders/{{orderId}}"
+      }
+    },
+    {
+      "name": "Lister les commandes d'un client",
+      "request": {
+        "method": "GET",
+        "url": "{{orderBaseUrl}}/api/orders/customer/{{customerId}}"
+      }
+    },
+    {
+      "name": "Annuler une commande",
+      "request": {
+        "method": "POST",
+        "url": "{{orderBaseUrl}}/api/orders/{{orderId}}/cancel"
+      }
+    }
+  ]
+}

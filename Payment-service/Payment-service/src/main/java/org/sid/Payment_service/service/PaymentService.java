@@ -2,6 +2,7 @@ package org.sid.Payment_service.service;
 
 import org.sid.Payment_service.dto.CreatePaymentRequest;
 import org.sid.Payment_service.dto.PaymentResponse;
+import org.sid.Payment_service.dto.OrderInfo;
 import org.sid.Payment_service.dto.UpdatePaymentStatusRequest;
 import org.sid.Payment_service.entity.Payment;
 import org.sid.Payment_service.entity.PaymentStatus;
@@ -17,13 +18,24 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class PaymentService {
     private final PaymentRepository payments;
+    private final OrderClient orders;
 
-    public PaymentService(PaymentRepository payments) {
+    public PaymentService(PaymentRepository payments, OrderClient orders) {
         this.payments = payments;
+        this.orders = orders;
     }
 
     @Transactional
     public PaymentResponse create(CreatePaymentRequest request) {
+        OrderInfo order = orders.getOrder(request.orderId());
+        if (!"CREATED".equals(order.status())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "A payment can only be created for an order in CREATED status.");
+        }
+        if (request.amount().compareTo(order.totalAmount()) != 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Payment amount must match the order total.");
+        }
         Payment payment = new Payment();
         payment.setOrderId(request.orderId());
         payment.setAmount(request.amount());
@@ -46,6 +58,9 @@ public class PaymentService {
         if (currentStatus != requestedStatus && currentStatus != PaymentStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Le statut d'une tentative de paiement terminée ne peut plus être modifié.");
+        }
+        if (requestedStatus == PaymentStatus.SUCCEEDED) {
+            orders.confirmOrder(payment.getOrderId());
         }
         payment.setStatus(requestedStatus);
         return toResponse(payment);

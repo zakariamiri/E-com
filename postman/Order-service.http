@@ -1,0 +1,35 @@
+# Order-service - MVP
+
+###
+# @name Créer une commande
+POST {{orderBaseUrl}}/api/orders
+Content-Type: application/json
+
+{
+  "customerId": {{customerId}},
+  "shippingAddress": "12 rue de Démonstration, Casablanca",
+  "items": [
+    {
+      "productId": {{productId}},
+      "quantity": {{quantity}}
+    }
+  ]
+}
+
+> {%
+    // TODO: migrate to HTTP Client Response handler API
+    // pm.test('Commande créée', () => pm.response.to.have.status(201));
+    // if (pm.response.code === 201) { pm.collectionVariables.set('orderId', String(pm.response.json().id)); }
+%}
+
+###
+# @name Consulter une commande
+GET {{orderBaseUrl}}/api/orders/{{orderId}}
+
+###
+# @name Lister les commandes d'un client
+GET {{orderBaseUrl}}/api/orders/customer/{{customerId}}
+
+###
+# @name Annuler une commande
+POST {{orderBaseUrl}}/api/orders/{{orderId}}/cancel

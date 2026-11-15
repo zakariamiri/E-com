@@ -1,0 +1,103 @@
+# End-to-end: create category -> product -> order -> inspect Mailtrap Sandbox
+# Run the requests from top to bottom in IntelliJ IDEA. The response handlers
+# save each returned ID for the following request.
+
+@productBaseUrl = http://localhost:8086
+@orderBaseUrl = http://localhost:8084
+@notificationBaseUrl = http://localhost:8083
+@customerId = 1
+@quantity = 1
+
+### 1. Create a product category
+# @name createCategory
+POST {{productBaseUrl}}/api/categories
+Content-Type: application/json
+
+{
+  "name": "E2E category {{$uuid}}",
+  "description": "Created by the product-to-notification smoke test",
+  "parentId": null
+}
+
+> {%
+  client.test("Category created", function () {
+    client.assert(response.status === 201, "Expected HTTP 201, got " + response.status);
+    client.assert(response.body.id !== undefined, "Category response must contain id");
+  });
+  client.global.set("e2eCategoryId", response.body.id);
+%}
+
+### 2. Create a published product in that category
+# @name createProduct
+POST {{productBaseUrl}}/api/products
+Content-Type: application/json
+
+{
+  "name": "E2E notification product",
+  "description": "Created by the product-to-notification smoke test",
+  "brand": "E2E",
+  "sku": "E2E-{{$uuid}}",
+  "price": 19.99,
+  "stockQuantity": 5,
+  "status": "PUBLISHED",
+  "categoryId": {{e2eCategoryId}}
+}
+
+> {%
+  client.test("Product created", function () {
+    client.assert(response.status === 201, "Expected HTTP 201, got " + response.status);
+    client.assert(response.body.id !== undefined, "Product response must contain id");
+    client.assert(response.body.available === true, "Product should be available");
+  });
+  client.global.set("e2eProductId", response.body.id);
+%}
+
+### 3. Create an order (publishes order.created after database commit)
+# @name createOrder
+POST {{orderBaseUrl}}/api/orders
+Idempotency-Key: {{$uuid}}
+Content-Type: application/json
+
+{
+  "customerId": {{customerId}},
+  "shippingAddress": "12 rue de Démonstration, Casablanca",
+  "items": [
+    {
+      "productId": {{e2eProductId}},
+      "quantity": {{quantity}}
+    }
+  ]
+}
+
+> {%
+  client.test("Order created", function () {
+    client.assert(response.status === 201, "Expected HTTP 201, got " + response.status);
+    client.assert(response.body.id !== undefined, "Order response must contain id");
+    client.assert(response.body.status === "CREATED", "Expected CREATED order status");
+  });
+  client.global.set("e2eOrderId", response.body.id);
+%}
+
+### 4. Confirm the saved order and its product snapshot
+GET {{orderBaseUrl}}/api/orders/{{e2eOrderId}}
+Accept: application/json
+
+> {%
+  client.test("Order contains the created product", function () {
+    client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
+    client.assert(response.body.items.length === 1, "Expected one order item");
+    client.assert(String(response.body.items[0].productId) === String(client.global.get("e2eProductId")),
+      "Order item should reference the product created above");
+  });
+%}
+
+### 5. Confirm Notification-service is healthy
+GET {{notificationBaseUrl}}/actuator/health
+Accept: application/json
+
+> {%
+  client.test("Notification-service is up", function () {
+    client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
+    client.assert(response.body.status === "UP", "Notification-service health should be UP");
+  });
+%}
