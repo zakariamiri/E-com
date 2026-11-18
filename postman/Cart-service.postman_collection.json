@@ -1,0 +1,123 @@
+{
+  "info": {
+    "name": "Cart-service - MVP",
+    "description": "Créer, consulter et gérer les paniers et articles du panier (V1, V2, V3).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "cartBaseUrl", "value": "http://localhost:8082" },
+    { "key": "gatewayBaseUrl", "value": "http://localhost:8087" },
+    { "key": "userId", "value": "1" },
+    { "key": "productId", "value": "1" },
+    { "key": "quantity", "value": "2" },
+    { "key": "cartId", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Créer un panier",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": {{userId}}\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{cartBaseUrl}}/api/carts"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Panier créé', () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) { pm.collectionVariables.set('cartId', String(pm.response.json().id)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Lister tous les paniers",
+      "request": {
+        "method": "GET",
+        "url": "{{cartBaseUrl}}/api/carts"
+      }
+    },
+    {
+      "name": "Consulter un panier par ID",
+      "request": {
+        "method": "GET",
+        "url": "{{cartBaseUrl}}/api/carts/{{cartId}}"
+      }
+    },
+    {
+      "name": "Consulter le panier d'un utilisateur",
+      "request": {
+        "method": "GET",
+        "url": "{{cartBaseUrl}}/api/carts/user/{{userId}}"
+      }
+    },
+    {
+      "name": "Ajouter un article au panier",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"productId\": {{productId}},\n  \"quantity\": {{quantity}}\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{cartBaseUrl}}/api/carts/{{cartId}}/items"
+      }
+    },
+    {
+      "name": "Modifier la quantité d'un article",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"quantity\": 5\n}",
+          "options": { "raw": { "language": "json" } }
+        },
+        "url": "{{cartBaseUrl}}/api/carts/{{cartId}}/items/{{productId}}"
+      }
+    },
+    {
+      "name": "Supprimer un article du panier",
+      "request": {
+        "method": "DELETE",
+        "url": "{{cartBaseUrl}}/api/carts/{{cartId}}/items/{{productId}}"
+      }
+    },
+    {
+      "name": "Vider le panier",
+      "request": {
+        "method": "DELETE",
+        "url": "{{cartBaseUrl}}/api/carts/{{cartId}}/items"
+      }
+    },
+    {
+      "name": "Supprimer le panier",
+      "request": {
+        "method": "DELETE",
+        "url": "{{cartBaseUrl}}/api/carts/{{cartId}}"
+      }
+    },
+    {
+      "name": "Via Gateway - Consulter le panier",
+      "request": {
+        "method": "GET",
+        "url": "{{gatewayBaseUrl}}/cart-service/api/carts/{{cartId}}"
+      }
+    }
+  ]
+}

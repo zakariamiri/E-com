@@ -1,0 +1,64 @@
+# Cart-service - MVP (V1, V2, V3)
+
+@cartBaseUrl = http://localhost:8082
+@gatewayBaseUrl = http://localhost:8087
+@userId = 1
+@productId = 1
+@quantity = 2
+@cartId = 1
+
+###
+# @name Créer un panier
+POST {{cartBaseUrl}}/api/carts
+Content-Type: application/json
+
+{
+  "userId": {{userId}}
+}
+
+###
+# @name Lister tous les paniers
+GET {{cartBaseUrl}}/api/carts
+
+###
+# @name Consulter un panier par ID
+GET {{cartBaseUrl}}/api/carts/{{cartId}}
+
+###
+# @name Consulter le panier d'un utilisateur
+GET {{cartBaseUrl}}/api/carts/user/{{userId}}
+
+###
+# @name Ajouter un article au panier
+POST {{cartBaseUrl}}/api/carts/{{cartId}}/items
+Content-Type: application/json
+
+{
+  "productId": {{productId}},
+  "quantity": {{quantity}}
+}
+
+###
+# @name Modifier la quantité d'un article
+PUT {{cartBaseUrl}}/api/carts/{{cartId}}/items/{{productId}}
+Content-Type: application/json
+
+{
+  "quantity": 5
+}
+
+###
+# @name Supprimer un article du panier
+DELETE {{cartBaseUrl}}/api/carts/{{cartId}}/items/{{productId}}
+
+###
+# @name Vider le panier
+DELETE {{cartBaseUrl}}/api/carts/{{cartId}}/items
+
+###
+# @name Supprimer le panier
+DELETE {{cartBaseUrl}}/api/carts/{{cartId}}
+
+###
+# @name Via Gateway - Consulter le panier
+GET {{gatewayBaseUrl}}/cart-service/api/carts/{{cartId}}
