@@ -1,14 +1,35 @@
-# End-to-end: create category -> product -> order -> inspect Mailtrap Sandbox
+# End-to-end: create user -> create category -> product -> order -> inspect notification
 # Run the requests from top to bottom in IntelliJ IDEA. The response handlers
 # save each returned ID for the following request.
 
 @productBaseUrl = http://localhost:8086
 @orderBaseUrl = http://localhost:8084
 @notificationBaseUrl = http://localhost:8083
-@customerId = 1
+@authBaseUrl = http://localhost:8081
+@cartBaseUrl = http://localhost:8082
 @quantity = 1
 
-### 1. Create a product category
+### 1. Create a customer in Auth-service
+# @name createUser
+POST {{authBaseUrl}}/api/users
+Content-Type: application/json
+
+{
+  "firstName": "E2E",
+  "lastName": "Customer",
+  "email": "e2e-{{$uuid}}@example.com",
+  "password": "Passw0rd!"
+}
+
+> {%
+  client.test("User created", function () {
+    client.assert(response.status === 201, "Expected HTTP 201, got " + response.status);
+    client.assert(response.body.id !== undefined, "User response must contain id");
+  });
+  client.global.set("e2eCustomerId", response.body.id);
+%}
+
+### 2. Create a product category
 # @name createCategory
 POST {{productBaseUrl}}/api/categories
 Content-Type: application/json
@@ -27,7 +48,7 @@ Content-Type: application/json
   client.global.set("e2eCategoryId", response.body.id);
 %}
 
-### 2. Create a published product in that category
+### 3. Create a published product in that category
 # @name createProduct
 POST {{productBaseUrl}}/api/products
 Content-Type: application/json
@@ -52,21 +73,48 @@ Content-Type: application/json
   client.global.set("e2eProductId", response.body.id);
 %}
 
-### 3. Create an order (publishes order.created after database commit)
-# @name createOrder
-POST {{orderBaseUrl}}/api/orders
+### 4. Create a cart for that user
+# @name createCart
+POST {{cartBaseUrl}}/api/carts
+Content-Type: application/json
+
+{
+  "userId": {{e2eCustomerId}}
+}
+
+> {%
+  client.test("Cart created", function () {
+    client.assert(response.status === 201, "Expected HTTP 201, got " + response.status);
+    client.assert(response.body.id !== undefined, "Cart response must contain id");
+  });
+  client.global.set("e2eCartId", response.body.id);
+%}
+
+### 5. Add product to the cart
+# @name addCartItem
+POST {{cartBaseUrl}}/api/carts/{{e2eCartId}}/items
+Content-Type: application/json
+
+{
+  "productId": {{e2eProductId}},
+  "quantity": {{quantity}}
+}
+
+> {%
+  client.test("Cart item added", function () {
+    client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
+    client.assert(response.body.items.length === 1, "Expected one item in cart");
+  });
+%}
+
+### 6. Create an order from cart (publishes order.created after database commit)
+# @name createOrderFromCart
+POST {{orderBaseUrl}}/api/orders/from-cart/{{e2eCustomerId}}
 Idempotency-Key: {{$uuid}}
 Content-Type: application/json
 
 {
-  "customerId": {{customerId}},
-  "shippingAddress": "12 rue de Démonstration, Casablanca",
-  "items": [
-    {
-      "productId": {{e2eProductId}},
-      "quantity": {{quantity}}
-    }
-  ]
+  "shippingAddress": "12 rue de Démonstration, Casablanca"
 }
 
 > {%
@@ -78,7 +126,7 @@ Content-Type: application/json
   client.global.set("e2eOrderId", response.body.id);
 %}
 
-### 4. Confirm the saved order and its product snapshot
+### 7. Confirm the saved order and its product snapshot
 GET {{orderBaseUrl}}/api/orders/{{e2eOrderId}}
 Accept: application/json
 
@@ -91,7 +139,18 @@ Accept: application/json
   });
 %}
 
-### 5. Confirm Notification-service is healthy
+### 8. Verify cart was cleared after checkout
+GET {{cartBaseUrl}}/api/carts/{{e2eCartId}}
+Accept: application/json
+
+> {%
+  client.test("Cart is empty after order checkout", function () {
+    client.assert(response.status === 200, "Expected HTTP 200, got " + response.status);
+    client.assert(response.body.items.length === 0, "Expected cart to be cleared");
+  });
+%}
+
+### 9. Confirm Notification-service is healthy
 GET {{notificationBaseUrl}}/actuator/health
 Accept: application/json
 

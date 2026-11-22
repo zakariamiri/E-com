@@ -1,6 +1,7 @@
 package org.sid.Order_service.controller;
 
 import org.sid.Order_service.dto.OrderResponse;
+import org.sid.Order_service.dto.CheckoutCartRequest;
 import org.sid.Order_service.dto.CreateOrderRequest;
 import org.sid.Order_service.services.OrderService;
 import jakarta.validation.Valid;
@@ -25,6 +26,14 @@ public class OrderController {
     public OrderResponse createOrder(@RequestHeader("Idempotency-Key") String idempotencyKey,
                                      @Valid @RequestBody CreateOrderRequest request) {
         return orderService.createOrder(request, idempotencyKey);
+    }
+
+    @PostMapping("/from-cart/{customerId}")
+    @ResponseStatus(HttpStatus.CREATED)
+    public OrderResponse createOrderFromCart(@PathVariable Long customerId,
+                                             @RequestHeader("Idempotency-Key") String idempotencyKey,
+                                             @Valid @RequestBody CheckoutCartRequest request) {
+        return orderService.createOrderFromCart(customerId, request.shippingAddress(), idempotencyKey);
     }
 
     @GetMapping("/{id}")

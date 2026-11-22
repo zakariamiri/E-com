@@ -29,15 +29,15 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(NoFallbackAvailableException.class)
     ResponseEntity<?> handleDownstreamTimeout(NoFallbackAvailableException ex) {
-        log.error("Product-service circuit breaker failed", ex);
+        log.error("Downstream service circuit breaker failed", ex);
         Throwable cause = ex;
         while (cause.getCause() != null && cause.getCause() != cause) {
             cause = cause.getCause();
         }
         String causeType = cause.getClass().getSimpleName();
         String message = cause instanceof TimeoutException
-                ? "Timed out waiting for Product service"
-                : "Product service request failed";
+                ? "Timed out waiting for downstream service"
+                : "Downstream service request failed";
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of(
                 "timestamp", Instant.now(), "status", HttpStatus.SERVICE_UNAVAILABLE.value(),
                 "error", "Service Unavailable", "message", message, "cause", causeType));

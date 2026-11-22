@@ -1,9 +1,13 @@
 
 package org.sid.Order_service.services;
 
+import feign.FeignException;
+import org.sid.Order_service.dto.CartResponse;
 import org.sid.Order_service.dto.OrderResponse;
 import org.sid.Order_service.dto.CreateOrderRequest;
+import org.sid.Order_service.dto.OrderItemRequest;
 import org.sid.Order_service.dto.ProductInfo;
+import org.sid.Order_service.dto.UserSummaryResponse;
 import org.sid.Order_service.entities.Order;
 import org.sid.Order_service.entities.OrderItem;
 import org.sid.Order_service.enums.OrderStatus;
@@ -26,26 +30,60 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final ProductClient productClient;
+    private final CartClient cartClient;
+    private final AuthClient authClient;
     private final ApplicationEventPublisher events;
 
-    public OrderService(OrderRepository orderRepository, ProductClient productClient, ApplicationEventPublisher events) {
+    public OrderService(OrderRepository orderRepository, ProductClient productClient, CartClient cartClient,
+                        AuthClient authClient,
+                        ApplicationEventPublisher events) {
         this.orderRepository = orderRepository;
         this.productClient = productClient;
+        this.cartClient = cartClient;
+        this.authClient = authClient;
         this.events = events;
     }
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request, String idempotencyKey) {
-        if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > 100) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Idempotency-Key must contain 1 to 100 characters");
+        return createOrderInternal(request.customerId(), request.shippingAddress(), request.items(), idempotencyKey, null);
+    }
+
+    @Transactional
+    public OrderResponse createOrderFromCart(Long customerId, String shippingAddress, String idempotencyKey) {
+        CartResponse cart = resolveCart(customerId);
+        List<OrderItemRequest> items = cart.items().stream()
+                .map(item -> {
+                    if (item.quantity() == null || item.quantity() < 1) {
+                        throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                "Cart contains invalid quantity for product: " + item.productId());
+                    }
+                    return new OrderItemRequest(item.productId(), item.quantity());
+                })
+                .toList();
+        if (items.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cart is empty for customer: " + customerId);
         }
+        return createOrderInternal(customerId, shippingAddress, items, idempotencyKey, cart.id());
+    }
+
+    private OrderResponse createOrderInternal(Long customerId, String shippingAddress, List<OrderItemRequest> requestedItems,
+                                              String idempotencyKey, Long sourceCartId) {
+        validateIdempotencyKey(idempotencyKey);
         var existing = orderRepository.findByIdempotencyKey(idempotencyKey);
-        if (existing.isPresent()) return mapToResponse(existing.get());
+        if (existing.isPresent()) {
+            return mapToResponse(existing.get());
+        }
+        UserSummaryResponse customer = resolveCustomer(customerId);
+        if (!customer.enabled()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Customer account is disabled: " + customerId);
+        }
         Set<Long> productIds = new HashSet<>();
         List<OrderItem> items = new ArrayList<>();
         List<OrderItemRequestWithId> reserved = new ArrayList<>();
         try {
-            for (var requested : request.items()) {
+            for (OrderItemRequest requested : requestedItems) {
                 if (!productIds.add(requested.productId())) {
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                             "Each product may appear only once in an order");
@@ -62,14 +100,17 @@ public class OrderService {
             }
 
             Order order = new Order();
-            order.setCustomerId(request.customerId());
+            order.setCustomerId(customerId);
             order.setIdempotencyKey(idempotencyKey);
-            order.setShippingAddress(request.shippingAddress().strip());
+            order.setShippingAddress(shippingAddress.strip());
             order.setStatus(OrderStatus.CREATED);
             items.forEach(order::addItem);
             order.setTotalAmount(order.getItems().stream().map(OrderItem::getSubtotal)
                     .reduce(BigDecimal.ZERO, BigDecimal::add));
             Order saved = orderRepository.save(order);
+            if (sourceCartId != null) {
+                clearCart(sourceCartId);
+            }
             events.publishEvent(new OrderCreatedEvent(saved.getId(), saved.getCustomerId(), saved.getTotalAmount(),
                     saved.getShippingAddress(), saved.getCreatedAt(), saved.getItems().stream()
                     .map(item -> new OrderCreatedEvent.Item(item.getProductId(), item.getProductName(),
@@ -122,6 +163,12 @@ public class OrderService {
         return mapToResponse(order);
     }
 
+    private void validateIdempotencyKey(String idempotencyKey) {
+        if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Idempotency-Key must contain 1 to 100 characters");
+        }
+    }
+
     private void releaseReservations(List<OrderItemRequestWithId> reserved, RuntimeException failure) {
         for (int i = reserved.size() - 1; i >= 0; i--) {
             OrderItemRequestWithId item = reserved.get(i);
@@ -134,6 +181,41 @@ public class OrderService {
     }
 
     private record OrderItemRequestWithId(Long productId, int quantity) {}
+
+    private UserSummaryResponse resolveCustomer(Long customerId) {
+        try {
+            return authClient.getUserSummary(customerId);
+        } catch (FeignException.NotFound notFound) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Customer not found with ID: " + customerId, notFound);
+        } catch (FeignException failure) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Auth service is unavailable", failure);
+        }
+    }
+
+    private CartResponse resolveCart(Long customerId) {
+        try {
+            return cartClient.getCartByUserId(customerId);
+        } catch (FeignException.NotFound notFound) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Cart not found for customer: " + customerId, notFound);
+        } catch (FeignException failure) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Cart service is unavailable", failure);
+        }
+    }
+
+    private void clearCart(Long cartId) {
+        try {
+            cartClient.clearCart(cartId);
+        } catch (FeignException.NotFound ignored) {
+            // If the cart disappears between read and clear, it is already effectively empty.
+        } catch (FeignException failure) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Cart service is unavailable", failure);
+        }
+    }
 
     private ResponseStatusException orderNotFound(Long id) {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found with ID: " + id);
