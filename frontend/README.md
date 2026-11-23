@@ -17,4 +17,3 @@ Le bouton **Simuler le paiement** utilise les statuts du service Payment sans co
 ## Connexion
 
 Le front propose aussi la connexion, la consultation du profil et la déconnexion. Configure JWT_SECRET avant de démarrer Auth-service (voir ../Auth-service/Auth-service/README.md). Le JWT est conservé dans le stockage de session de l’onglet et supprimé à la déconnexion ou à l’expiration. Après un rechargement, le front vérifie la session auprès d’Auth-service avant d’afficher les options du compte.
-

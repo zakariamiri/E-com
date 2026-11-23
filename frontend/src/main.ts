@@ -10,4 +10,3 @@ registerLocaleData(localeFr);
 bootstrapApplication(RegistrationComponent, {
   providers: [provideHttpClient(), provideZonelessChangeDetection(), { provide: LOCALE_ID, useValue: 'fr' }],
 }).catch(console.error);
-
