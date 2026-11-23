@@ -1,0 +1,53 @@
+<main class="registration-layout">
+  <aside class="feature" aria-label="Bienvenue">
+    <div class="feature-copy">
+      <p class="feature-title">Bienvenue chez NovaStore.</p>
+      <p>Crée ton compte pour commencer tes achats.</p>
+    </div>
+  </aside>
+  <section class="card" aria-labelledby="registration-title">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">N</span>NovaStore</div>
+    @if (createdEmail()) {
+      <div class="success" role="status">
+        <h1 id="registration-title">Compte créé</h1>
+        <p>Ton compte NovaStore a été créé avec l’adresse <strong>{{ createdEmail() }}</strong>.</p>
+      </div>
+      <button class="primary" type="button" (click)="createdEmail.set('')">Créer un autre compte</button>
+    } @else {
+      <h1 id="registration-title">Créer un compte</h1>
+      <p class="intro">Ouvre ton espace client NovaStore.</p>
+      <form [formGroup]="form" (ngSubmit)="register()" novalidate>
+        <div class="names">
+          <label>Prénom
+            <input formControlName="firstName" autocomplete="given-name" maxlength="255" required
+              [attr.aria-invalid]="submitted() && !form.controls.firstName.value.trim()">
+          </label>
+          <label>Nom
+            <input formControlName="lastName" autocomplete="family-name" maxlength="255" required
+              [attr.aria-invalid]="submitted() && !form.controls.lastName.value.trim()">
+          </label>
+        </div>
+        <label>Adresse e-mail
+          <input type="email" formControlName="email" autocomplete="email" maxlength="254" required
+            [attr.aria-invalid]="submitted() && form.controls.email.invalid">
+        </label>
+        <div>
+          <label for="password">Mot de passe</label>
+          <div class="password">
+            <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password"
+              autocomplete="new-password" required minlength="8" maxlength="72" aria-describedby="password-hint"
+              [attr.aria-invalid]="submitted() && form.controls.password.invalid">
+            <button type="button" class="toggle" aria-controls="password"
+              (click)="showPassword.set(!showPassword())">{{ showPassword() ? 'Masquer' : 'Afficher' }}</button>
+          </div>
+          <small id="password-hint">Au moins 8 caractères.</small>
+        </div>
+        @if (error()) {
+          <p class="error" role="alert">{{ error() }}</p>
+        }
+        <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Création en cours…' : 'Créer mon compte' }}</button>
+      </form>
+    }
+  </section>
+</main>
+

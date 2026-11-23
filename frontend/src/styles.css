@@ -1,0 +1,166 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #142344;
+  background: radial-gradient(ellipse at top left, #dceaff, transparent 60%), #f2f6fd;
+  --accent: #2259df;
+  --muted: #52637e;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -.035em;
+}
+
+.brand-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--accent);
+  color: white;
+  font-size: 16px;
+}
+
+app-registration {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: clamp(16px, 4vw, 42px);
+}
+
+.registration-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
+  width: min(100%, 1010px);
+  padding: 10px;
+  border: 1px solid #e3ecff;
+  border-radius: 30px;
+  background: white;
+  box-shadow: 0 26px 75px -38px #15377180;
+}
+
+.feature {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: 565px;
+  padding: clamp(32px, 5vw, 62px);
+  border-radius: 22px;
+  color: white;
+  background: radial-gradient(ellipse at bottom right, #468bfa, transparent 66%), linear-gradient(148deg, #122e86, #214dcc 78%);
+}
+
+.feature::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  right: -145px;
+  bottom: -255px;
+  width: 490px;
+  aspect-ratio: 1;
+  border: 1px solid #ffffff40;
+  border-radius: 50%;
+  box-shadow: 0 0 0 35px #ffffff14, 0 0 0 75px #ffffff10, 0 0 0 120px #ffffff0a;
+}
+
+.feature-copy { max-width: 28ch; }
+.feature-copy p { margin: 0; line-height: 1.5; }
+.feature-copy .feature-title {
+  margin-bottom: 12px;
+  font-size: clamp(34px, 4.6vw, 52px);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -.045em;
+}
+
+.card {
+  align-self: center;
+  min-width: 0;
+  padding: clamp(30px, 5vw, 62px);
+}
+
+.card .brand { margin-bottom: 28px; }
+
+h1 {
+  margin: 0 0 8px;
+  font-size: clamp(28px, 5vw, 36px);
+  line-height: 1.1;
+  letter-spacing: -.045em;
+}
+
+.intro { margin: 0 0 23px; color: var(--muted); line-height: 1.5; }
+form { display: grid; gap: 14px; }
+.names { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+label { display: block; font-size: 14px; font-weight: 650; }
+
+input {
+  display: block;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border: 1px solid #c4d1e6;
+  border-radius: 11px;
+  background: #f7faff;
+  color: inherit;
+  font: inherit;
+  font-size: 16px;
+}
+
+input[aria-invalid='true'] { border-color: #b42318; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { border-radius: 8px; font: inherit; cursor: pointer; }
+.password { position: relative; }
+.password input { padding-right: 88px; }
+.toggle {
+  position: absolute;
+  inset: 3px 3px 3px auto;
+  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+}
+.toggle:hover { background: #edf2fc; }
+small { display: block; margin-top: 6px; color: var(--muted); }
+.primary {
+  width: 100%;
+  min-height: 49px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(110deg, #214fca, #2865e9);
+  color: white;
+  font-weight: 700;
+  box-shadow: 0 8px 17px -8px #184bc8aa;
+}
+.primary:hover { background: #1c3b8d; }
+.primary:disabled { opacity: .65; cursor: wait; }
+.error { margin: 0; padding: 10px 12px; border-radius: 8px; background: #fff1f0; color: #912018; }
+.success { margin-bottom: 20px; overflow-wrap: anywhere; }
+.success h1 { color: #17614a; }
+
+@media (max-width: 390px) {
+  .names { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 680px) {
+  .registration-layout { grid-template-columns: 1fr; max-width: 480px; }
+  .feature { min-height: 148px; padding: 24px; border-radius: 20px; }
+  .feature-copy { max-width: none; }
+  .feature-copy .feature-title { font-size: 25px; }
+  .card { padding: 24px 14px 16px; }
+  .card .brand { margin-bottom: 18px; }
+}
