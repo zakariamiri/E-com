@@ -3,6 +3,7 @@ package org.sid.Order_service.entities;
 import jakarta.persistence.*;
 import lombok.Data;
 import org.sid.Order_service.enums.OrderStatus;
+import org.sid.Order_service.enums.PaymentMethod;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -26,6 +27,9 @@ public class Order {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private PaymentMethod paymentMethod;
 
     @Column(nullable = false)
     private String shippingAddress;

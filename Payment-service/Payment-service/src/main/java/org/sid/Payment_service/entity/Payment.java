@@ -46,4 +46,6 @@ public class Payment {
     void setCreationTime() {
         createdAt = Instant.now();
     }
+    @Column(name = "idempotency_key", length = 100, updatable = false)
+    private String idempotencyKey;
 }

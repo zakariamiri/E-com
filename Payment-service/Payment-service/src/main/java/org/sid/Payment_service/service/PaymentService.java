@@ -7,39 +7,74 @@ import org.sid.Payment_service.dto.UpdatePaymentStatusRequest;
 import org.sid.Payment_service.entity.Payment;
 import org.sid.Payment_service.entity.PaymentStatus;
 import org.sid.Payment_service.repository.PaymentRepository;
+import org.sid.Payment_service.event.PaymentStatusChangedEvent;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.time.Instant;
+import java.util.UUID;
 
 @Service
 @Transactional(readOnly = true)
 public class PaymentService {
     private final PaymentRepository payments;
     private final OrderClient orders;
+    private final ApplicationEventPublisher events;
 
-    public PaymentService(PaymentRepository payments, OrderClient orders) {
+    public PaymentService(PaymentRepository payments, OrderClient orders,
+                          ApplicationEventPublisher events) {
         this.payments = payments;
         this.orders = orders;
+        this.events = events;
     }
 
-    @Transactional
-    public PaymentResponse create(CreatePaymentRequest request) {
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public PaymentResponse create(CreatePaymentRequest request, String idempotencyKey) {
+        String key = idempotencyKey.strip();
+        if (key.isEmpty() || key.length() > 100) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Idempotency-Key doit contenir entre 1 et 100 caractères.");
+        }
+
+        int inserted = payments.insertIfAbsent(request.orderId(), request.amount(), key);
+
+        Payment payment = payments.findByIdempotencyKey(key)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Le paiement associé à la clé est introuvable."));
+
+        if (inserted == 0) {
+            boolean sameOrder = payment.getOrderId().equals(request.orderId());
+            boolean sameAmount = payment.getAmount().compareTo(request.amount()) == 0;
+            if (!sameOrder || !sameAmount) {
+                throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "Cette clé est déjà associée à une autre demande de paiement.");
+            }
+
+            return toResponse(payment);
+        }
+
         OrderInfo order = orders.getOrder(request.orderId());
         if (!"CREATED".equals(order.status())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "A payment can only be created for an order in CREATED status.");
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "La commande doit être au statut CREATED.");
         }
+
         if (request.amount().compareTo(order.totalAmount()) != 0) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Payment amount must match the order total.");
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "Le montant doit correspondre au total de la commande.");
         }
-        Payment payment = new Payment();
-        payment.setOrderId(request.orderId());
-        payment.setAmount(request.amount());
-        return toResponse(payments.save(payment));
+
+        return toResponse(payment);
     }
 
     public List<PaymentResponse> findAll() {
@@ -55,14 +90,35 @@ public class PaymentService {
         Payment payment = payments.findByIdForUpdate(id).orElseThrow(this::paymentNotFound);
         PaymentStatus currentStatus = payment.getStatus();
         PaymentStatus requestedStatus = request.status();
-        if (currentStatus != requestedStatus && currentStatus != PaymentStatus.PENDING) {
+        if (currentStatus == requestedStatus) {
+            return toResponse(payment);
+        }
+        if (currentStatus != PaymentStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Le statut d'une tentative de paiement terminée ne peut plus être modifié.");
         }
         if (requestedStatus == PaymentStatus.SUCCEEDED) {
+            if (payments.existsByOrderIdAndStatus(payment.getOrderId(), PaymentStatus.SUCCEEDED)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Cette commande possède déjà un paiement réussi.");
+            }
             orders.confirmOrder(payment.getOrderId());
         }
         payment.setStatus(requestedStatus);
+        try {
+            payments.saveAndFlush(payment);
+        } catch (DataIntegrityViolationException failure) {
+            if (failure.getMostSpecificCause() instanceof java.sql.SQLException cause
+                    && "23505".equals(cause.getSQLState())
+                    && cause.getMessage().contains("ux_payments_one_succeeded_order")) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Cette commande possède déjà un paiement réussi.", failure);
+            }
+            throw failure;
+        }
+        events.publishEvent(new PaymentStatusChangedEvent(
+                UUID.randomUUID(), "PAYMENT_STATUS_CHANGED", payment.getId(),
+                payment.getOrderId(), payment.getAmount(), requestedStatus.name(), Instant.now()));
         return toResponse(payment);
     }
 

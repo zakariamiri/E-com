@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.net.URI;
 import java.util.List;
+import org.springframework.security.core.Authentication;
+import org.sid.Auth_service.security.AccountAccess;
 
 @RestController
 @RequestMapping("/api/users")
@@ -42,23 +44,28 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public UserResponse findById(@PathVariable("id") Long id) {
+    public UserResponse findById(@PathVariable("id") Long id, Authentication authentication) {
+        AccountAccess.requireOwnerOrAdmin(authentication, id);
         return users.findById(id);
     }
 
     @GetMapping("/{id}/summary")
-    public UserSummaryResponse findSummary(@PathVariable("id") Long id) {
+    public UserSummaryResponse findSummary(@PathVariable("id") Long id, Authentication authentication) {
+        if (authentication.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_SERVICE")))
+            AccountAccess.requireOwnerOrAdmin(authentication, id);
         return users.findSummary(id);
     }
 
     @PutMapping("/{id}")
-    public UserResponse update(@PathVariable("id") Long id, @Valid @RequestBody UpdateUserRequest request) {
+    public UserResponse update(@PathVariable("id") Long id, @Valid @RequestBody UpdateUserRequest request, Authentication authentication) {
+        AccountAccess.requireOwnerOrAdmin(authentication, id);
         return users.update(id, request);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable("id") Long id) {
+    public void delete(@PathVariable("id") Long id, Authentication authentication) {
+        AccountAccess.requireOwnerOrAdmin(authentication, id);
         users.delete(id);
     }
 }

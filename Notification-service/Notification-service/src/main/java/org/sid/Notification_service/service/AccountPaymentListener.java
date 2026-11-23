@@ -1,7 +1,5 @@
 package org.sid.Notification_service.service;
 
-import org.sid.Notification_service.entity.ProcessedNotification;
-import org.sid.Notification_service.repository.ProcessedNotificationRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
@@ -10,7 +8,6 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
@@ -24,17 +21,17 @@ public class AccountPaymentListener {
             LoggerFactory.getLogger(AccountPaymentListener.class);
 
     private final ObjectMapper json;
-    private final ProcessedNotificationRepository repository;
     private final AuthEventReceipt authReceipts;
+    private final PaymentReceiptMailer paymentReceipts;
 
     public AccountPaymentListener(
             ObjectMapper json,
-            ProcessedNotificationRepository repository,
-            AuthEventReceipt authReceipts
+            AuthEventReceipt authReceipts,
+            PaymentReceiptMailer paymentReceipts
     ) {
         this.json = json;
-        this.repository = repository;
         this.authReceipts = authReceipts;
+        this.paymentReceipts = paymentReceipts;
     }
 
     @Bean
@@ -81,18 +78,32 @@ public class AccountPaymentListener {
     }
 
     @RabbitListener(
-            queues = "${payment.events.queue:notifications.payment-status}"
+            queues = "${payment.events.queue:notifications.payment-status}",
+            containerFactory = "paymentListenerContainerFactory"
     )
-    @Transactional
     public void onPaymentChanged(Message message) {
         PaymentStatusChangedEvent event = json.readValue(
                 message.getBody(),
                 PaymentStatusChangedEvent.class
         );
 
+        if (event.eventId() == null || event.paymentId() == null || event.paymentId() <= 0
+                || event.orderId() == null || event.orderId() <= 0
+                || event.amount() == null || event.amount().signum() <= 0
+                || event.occurredAt() == null
+                || !"PAYMENT_STATUS_CHANGED".equals(event.eventType())
+                || !java.util.Set.of("SUCCEEDED", "FAILED").contains(
+                        java.util.Objects.requireNonNullElse(event.status(), ""))) {
+            throw new IllegalArgumentException("Invalid PAYMENT_STATUS_CHANGED event");
+        }
         String eventId = "payment-" + event.eventId();
-
-        if (repository.existsById(eventId)) {
+        boolean sendReceipt = "SUCCEEDED".equals(event.status()) && paymentReceipts.isEnabled();
+        if (!authReceipts.recordAndProcess(eventId, event.orderId(), () -> {
+            if (sendReceipt) {
+                paymentReceipts.send(event);
+            }
+        })) {
+            log.info("Duplicate Payment event ignored: {}", event.eventId());
             return;
         }
 
@@ -102,10 +113,9 @@ public class AccountPaymentListener {
                 event.orderId(),
                 event.status()
         );
-
-        repository.save(
-                new ProcessedNotification(eventId, event.orderId())
-        );
+        if (sendReceipt) {
+            log.info("Reçu envoyé pour le paiement {}", event.paymentId());
+        }
     }
 
     public record UserCreatedEvent(

@@ -1,5 +1,8 @@
 {
-  "/api/**": {
+  "^/api/(products|categories)(/|[?]|$)": { "target": "http://127.0.0.1:8086" },
+  "^/api/orders(/|[?]|$)": { "target": "http://127.0.0.1:8084" },
+  "^/api/payments(/|[?]|$)": { "target": "http://127.0.0.1:8085" },
+  "^/api/(auth|users)(/|[?]|$)": {
     "target": "http://127.0.0.1:8081"
   }
 }

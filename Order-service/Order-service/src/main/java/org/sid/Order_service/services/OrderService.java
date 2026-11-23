@@ -11,6 +11,7 @@ import org.sid.Order_service.dto.UserSummaryResponse;
 import org.sid.Order_service.entities.Order;
 import org.sid.Order_service.entities.OrderItem;
 import org.sid.Order_service.enums.OrderStatus;
+import org.sid.Order_service.enums.PaymentMethod;
 import org.sid.Order_service.repositories.OrderRepository;
 import org.sid.Order_service.events.OrderCreatedEvent;
 import org.springframework.context.ApplicationEventPublisher;
@@ -46,7 +47,9 @@ public class OrderService {
 
     @Transactional
     public OrderResponse createOrder(CreateOrderRequest request, String idempotencyKey) {
-        return createOrderInternal(request.customerId(), request.shippingAddress(), request.items(), idempotencyKey, null);
+        PaymentMethod paymentMethod = request.paymentMethod() == null ? PaymentMethod.CARD : request.paymentMethod();
+        return createOrderInternal(request.customerId(), request.shippingAddress(), request.items(),
+                idempotencyKey, null, paymentMethod);
     }
 
     @Transactional
@@ -64,11 +67,11 @@ public class OrderService {
         if (items.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Cart is empty for customer: " + customerId);
         }
-        return createOrderInternal(customerId, shippingAddress, items, idempotencyKey, cart.id());
+        return createOrderInternal(customerId, shippingAddress, items, idempotencyKey, cart.id(), PaymentMethod.CARD);
     }
 
     private OrderResponse createOrderInternal(Long customerId, String shippingAddress, List<OrderItemRequest> requestedItems,
-                                              String idempotencyKey, Long sourceCartId) {
+                                              String idempotencyKey, Long sourceCartId, PaymentMethod paymentMethod) {
         validateIdempotencyKey(idempotencyKey);
         var existing = orderRepository.findByIdempotencyKey(idempotencyKey);
         if (existing.isPresent()) {
@@ -103,7 +106,9 @@ public class OrderService {
             order.setCustomerId(customerId);
             order.setIdempotencyKey(idempotencyKey);
             order.setShippingAddress(shippingAddress.strip());
-            order.setStatus(OrderStatus.CREATED);
+            order.setPaymentMethod(paymentMethod);
+            order.setStatus(paymentMethod == PaymentMethod.CASH_ON_DELIVERY
+                    ? OrderStatus.CONFIRMED : OrderStatus.CREATED);
             items.forEach(order::addItem);
             order.setTotalAmount(order.getItems().stream().map(OrderItem::getSubtotal)
                     .reduce(BigDecimal.ZERO, BigDecimal::add));
@@ -252,7 +257,8 @@ public class OrderService {
                 order.getStatus(),
                 order.getShippingAddress(),
                 order.getCreatedAt(),
-                items
+                items,
+                order.getPaymentMethod() == null ? PaymentMethod.CARD : order.getPaymentMethod()
         );
     }
 

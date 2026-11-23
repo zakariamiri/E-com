@@ -1,3 +1,114 @@
+<header class="store-header">
+  <div class="store-header-inner">
+  <button class="brand store-brand" type="button" [disabled]="busy()" (click)="show('products')">
+    <span class="brand-mark" aria-hidden="true">N</span>NovaStore
+  </button>
+  <label class="store-search">
+    <span class="search-icon" aria-hidden="true"></span>
+    <input type="search" aria-label="Rechercher un produit" placeholder="Rechercher un produit, une marque…" [value]="search()" [disabled]="busy()" (input)="searchProducts($any($event.target).value)">
+  </label>
+  <nav class="store-account-nav" aria-label="Compte et panier">
+    @if (account()) {
+      <button class="header-icon-button" type="button" [disabled]="busy()" aria-label="Mes commandes" title="Mes commandes"
+        [attr.aria-current]="screen() === 'orders' ? 'page' : null" (click)="loadOrders()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6m-6 4h6m-6 4h4"/>
+        </svg>
+      </button>
+    }
+    <button class="header-icon-button" type="button" [disabled]="busy()"
+      [attr.aria-label]="account() ? 'Mon compte' : 'Se connecter'"
+      [attr.title]="account() ? 'Mon compte' : 'Se connecter'"
+      [attr.aria-current]="screen() === 'auth' ? 'page' : null"
+      (click)="account() ? show('auth') : requireAccount('products')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" aria-hidden="true" focusable="false">
+        <circle cx="12" cy="8" r="3.5" />
+        <path d="M5 20v-1a7 7 0 0 1 14 0v1" />
+      </svg>
+    </button>
+    <button class="header-icon-button" type="button" [disabled]="busy()" title="Panier"
+      [attr.aria-label]="'Panier : ' + count() + (count() === 1 ? ' article' : ' articles')"
+      [attr.aria-current]="screen() === 'cart' ? 'page' : null" (click)="openCart()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M3 4h2l2.4 11.5h11.8L21 8H6" />
+        <circle cx="9" cy="20" r="1" />
+        <circle cx="18" cy="20" r="1" />
+      </svg>
+      <span class="basket-count" aria-hidden="true">{{ count() }}</span>
+    </button>
+  </nav>
+  </div>
+  <nav class="store-category-nav" aria-label="Catégories de la boutique">
+    <button type="button" [disabled]="busy()" [attr.aria-current]="screen() === 'products' && !category() ? 'page' : null" (click)="selectCategory('')">Tous les produits</button>
+    @for (name of categories(); track name) {
+      <button type="button" [disabled]="busy()" [attr.aria-current]="screen() === 'products' && category() === name ? 'page' : null" (click)="selectCategory(name)">{{ name }}</button>
+    }
+  </nav>
+</header>
+
+@if (screen() === 'auth' && account(); as user) {
+  <main class="store-main customer-dashboard">
+    <nav class="store-breadcrumb" aria-label="Fil d’Ariane">
+      <button type="button" class="text-button" [disabled]="busy()" (click)="show('products')">Accueil</button>
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">Mon Profil et sécurité</span>
+    </nav>
+    <header class="customer-profile-heading">
+      <span class="customer-avatar" aria-hidden="true">{{ user.firstName.charAt(0) }}{{ user.lastName.charAt(0) }}</span>
+      <div>
+        <h1>{{ user.firstName }} {{ user.lastName }}</h1>
+        <p>Mon compte NovaStore</p>
+      </div>
+    </header>
+    <div class="customer-dashboard-grid">
+      <nav class="store-panel customer-shortcuts" aria-label="Mon espace client">
+        <h2>Mon espace client</h2>
+        <p class="customer-active-section" aria-current="page">Mon profil</p>
+        <button type="button" [disabled]="busy()" (click)="loadOrders()">Mes commandes <span aria-hidden="true">›</span></button>
+        <button type="button" [disabled]="busy()" (click)="openCart()">
+          Mon panier <small>{{ count() }} {{ count() === 1 ? 'article' : 'articles' }}</small>
+        </button>
+        <button type="button" [disabled]="busy()" (click)="show('products')">Retour au catalogue <span aria-hidden="true">›</span></button>
+        <button class="customer-signout" type="button" [disabled]="busy()" (click)="logout()">Se déconnecter</button>
+      </nav>
+      <div class="customer-profile-content">
+        <section class="store-panel" aria-labelledby="customer-profile-title">
+          <h2 id="customer-profile-title">Informations personnelles</h2>
+          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" novalidate>
+            <fieldset class="customer-profile-fields" [disabled]="busy()">
+              <div class="names">
+                <label>Prénom
+                  <input type="text" formControlName="firstName" autocomplete="given-name" maxlength="255" required>
+                </label>
+                <label>Nom
+                  <input type="text" formControlName="lastName" autocomplete="family-name" maxlength="255" required>
+                </label>
+              </div>
+              <label>Adresse e-mail
+                <input type="email" formControlName="email" autocomplete="email" maxlength="254" required>
+              </label>
+            </fieldset>
+            @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+            @if (profileSaved() && !profileForm.dirty) { <p class="customer-saved" role="status">Profil mis à jour.</p> }
+            <button class="primary" type="submit" [disabled]="busy() || profileForm.pristine">
+              {{ busy() ? 'Enregistrement…' : 'Enregistrer les modifications' }}
+            </button>
+          </form>
+        </section>
+        <section class="store-panel" aria-labelledby="customer-session-title">
+          <h2 id="customer-session-title">Sécurité du compte</h2>
+          <div class="customer-session">
+            <div>
+              <strong>Session actuelle</strong>
+              <p class="store-muted">Tu es connecté sur ce navigateur.</p>
+            </div>
+            <button class="customer-signout" type="button" [disabled]="busy()" (click)="logout()">Fermer la session</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+} @else if (screen() === 'auth') {
 <main class="registration-layout">
   <aside class="feature" aria-label="Bienvenue">
     <div class="feature-copy">
@@ -7,12 +118,25 @@
   </aside>
   <section class="card" aria-labelledby="registration-title">
     <div class="brand"><span class="brand-mark" aria-hidden="true">N</span>NovaStore</div>
-    @if (createdEmail()) {
+    @if (mode() === 'login') {
+      <h1 id="registration-title">Se connecter</h1>
+      <form [formGroup]="loginForm" (ngSubmit)="login($event)" novalidate>
+        <label>Adresse e-mail
+          <input type="email" name="email" formControlName="email" autocomplete="username" required maxlength="254">
+        </label>
+        <label>Mot de passe
+          <input type="password" name="password" formControlName="password" autocomplete="current-password" required maxlength="72">
+        </label>
+        @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+        <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Connexion en cours…' : 'Se connecter' }}</button>
+        <button type="button" [disabled]="busy()" (click)="changeMode('register')">Créer un compte</button>
+      </form>
+    } @else if (createdEmail()) {
       <div class="success" role="status">
         <h1 id="registration-title">Compte créé</h1>
         <p>Ton compte NovaStore a été créé avec l’adresse <strong>{{ createdEmail() }}</strong>.</p>
       </div>
-      <button class="primary" type="button" (click)="createdEmail.set('')">Créer un autre compte</button>
+      <button class="primary" type="button" (click)="changeMode('login')">Se connecter</button>
     } @else {
       <h1 id="registration-title">Créer un compte</h1>
       <p class="intro">Ouvre ton espace client NovaStore.</p>
@@ -47,7 +171,321 @@
         }
         <button class="primary" type="submit" [disabled]="busy()">{{ busy() ? 'Création en cours…' : 'Créer mon compte' }}</button>
       </form>
+      <button type="button" [disabled]="busy()" (click)="changeMode('login')">Déjà un compte ? Se connecter</button>
     }
   </section>
 </main>
+} @else {
+  <main class="store-main">
+    @switch (screen()) {
+      @case ('products') {
+        @if (products().length && !category() && !search().trim()) {
+          <section class="catalog-hero" aria-labelledby="catalog-hero-title">
+            <div class="catalog-hero-content">
+              <h1 id="catalog-hero-title">Audio, informatique<br>et maison</h1>
+              <a href="#catalog-title">Explorer le catalogue <span aria-hidden="true">↓</span></a>
+            </div>
+            <div class="product-photo catalog-hero-photo" data-sku="DEMO-AUD-001" aria-hidden="true"></div>
+          </section>
+        } @else {
+          <div class="store-breadcrumb">Boutique <span aria-hidden="true">›</span> {{ category() || 'Catalogue' }}</div>
+        }
+        @if (loadingProducts()) {
+          <p role="status">Chargement du catalogue…</p>
+        } @else if (catalogError()) {
+          <div class="store-panel store-empty">
+            <h2>Catalogue indisponible</h2>
+            <button type="button" class="primary" (click)="loadProducts()">Réessayer</button>
+          </div>
+        } @else if (!products().length) {
+          <div class="store-panel store-empty">
+            <div class="catalog-mark" aria-hidden="true">N</div>
+            <h2>Aucun produit pour le moment</h2>
+            <p>Les articles disponibles apparaîtront ici.</p>
+          </div>
+        } @else {
+          <div class="catalog-layout">
+            <aside class="store-panel catalog-filters" aria-labelledby="filters-title">
+              <div class="filter-header"><h2 id="filters-title">Filtres</h2>
+                @if (search() || category() || inStock() || sort() !== 'default') {
+                  <button type="button" class="text-button" (click)="clearFilters()">Réinitialiser</button>
+                }
+              </div>
+              <fieldset>
+                <legend>Disponibilité</legend>
+                <label><input type="checkbox" [checked]="inStock()" (change)="inStock.set($any($event.target).checked)"> En stock uniquement</label>
+              </fieldset>
+              <fieldset>
+                <legend>Catégories</legend>
+                <label><input type="radio" name="category" [checked]="!category()" (change)="selectCategory('')"> Toutes les catégories</label>
+                @for (name of categories(); track name) {
+                  <label><input type="radio" name="category" [checked]="category() === name" (change)="selectCategory(name)"> {{ name }}</label>
+                }
+              </fieldset>
+            </aside>
+            <section class="catalog-results" aria-labelledby="catalog-title">
+              <div class="catalog-heading">
+                <div>
+                  @if (!category() && !search().trim()) {
+                    <h2 id="catalog-title">Tous les produits</h2>
+                  } @else {
+                    <h1 id="catalog-title">{{ category() || 'Résultats de recherche' }}</h1>
+                  }
+                  <p aria-live="polite">{{ filteredProducts().length }} {{ filteredProducts().length === 1 ? 'produit' : 'produits' }}</p>
+                </div>
+                <label class="store-sort">Trier par
+                  <select [value]="sort()" (change)="sort.set($any($event.target).value)">
+                    <option value="default">Pertinence</option>
+                    <option value="price-asc">Prix croissant</option>
+                    <option value="price-desc">Prix décroissant</option>
+                    <option value="name">Nom A–Z</option>
+                  </select>
+                </label>
+              </div>
+          <div class="product-grid">
+            @for (product of filteredProducts(); track product.id) {
+              <article class="store-panel product-card">
+                <button type="button" class="product-photo" [attr.data-sku]="product.sku" [attr.aria-label]="'Voir ' + product.name" (click)="viewProduct(product)">
+                  <span class="stock-badge" [class.out-of-stock]="!product.available">{{ product.available ? 'En stock' : 'Indisponible' }}</span>
+                </button>
+                <div class="product-card-body">
+                <p class="product-brand">{{ product.brand }}</p>
+                <h2><button type="button" class="product-link" (click)="viewProduct(product)">{{ product.name }}</button></h2>
+                <p class="product-description">{{ product.description }}</p>
+                <div class="product-actions">
+                  <strong>{{ product.price | currency:'MAD':'code' }}</strong>
+                  @let cartAction = !product.available ? 'Indisponible' : (quantity(product) >= product.stockQuantity ? 'Quantité maximale' : 'Ajouter au panier');
+                  <button type="button" class="primary action-icon"
+                    [attr.aria-label]="cartAction + ' · ' + product.name" [attr.title]="cartAction"
+                    [disabled]="!product.available || quantity(product) >= product.stockQuantity" (click)="changeQuantity(product, 1)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M2.5 4h2l2.4 11.5H18l2-7h-3M6 8.5h4m3-3v6m-3-3h6"/>
+                      <circle cx="8.5" cy="20" r="1"/><circle cx="17.5" cy="20" r="1"/>
+                    </svg>
+                  </button>
+                </div>
+                </div>
+              </article>
+            } @empty {
+              <div class="store-panel store-empty"><h2>Aucun résultat</h2><p>Essaie une autre recherche ou modifie les filtres.</p></div>
+            }
+          </div>
+            </section>
+          </div>
+        }
+      }
+      @case ('product') {
+        @if (selected(); as product) {
+          <button type="button" class="store-back" (click)="show('products')">← Retour au catalogue</button>
+          <section class="product-detail-layout">
+            <div class="product-photo product-detail-photo" [attr.data-sku]="product.sku" aria-hidden="true"></div>
+            <div class="store-panel product-detail">
+            <p class="store-muted">{{ product.category?.name || product.brand }}</p>
+            <h1>{{ product.name }}</h1>
+            <p>{{ product.description }}</p>
+            <p class="product-price">{{ product.price | currency:'MAD':'code' }}</p>
+            <p>{{ product.available ? product.stockQuantity + ' en stock' : 'Indisponible' }}</p>
+            <button type="button" class="primary" [disabled]="!product.available || quantity(product) >= product.stockQuantity" (click)="changeQuantity(product, 1)">Ajouter au panier</button>
+            </div>
+          </section>
+        }
+      }
+      @case ('cart') {
+        <button type="button" class="store-back" [disabled]="busy()" (click)="backFromCart()">
+          <span aria-hidden="true">←</span> Retour
+        </button>
+        <div class="store-title"><h1>Mon panier</h1></div>
+        <div class="basket-layout" [class.basket-with-items]="count() > 0">
+        <section class="store-panel">
+          @for (line of basket(); track line.product.id) {
+            <div class="basket-line">
+              <div class="basket-product">
+                <div class="product-photo basket-photo" [attr.data-sku]="line.product.sku" aria-hidden="true"></div>
+                <div><h2>{{ line.product.name }}</h2><p>{{ line.product.price | currency:'MAD':'code' }} par article</p></div>
+              </div>
+              <div class="quantity">
+                <button type="button" [attr.aria-label]="'Retirer un exemplaire de ' + line.product.name" (click)="changeQuantity(line.product, -1)">−</button>
+                <span>{{ line.quantity }}</span>
+                <button type="button" [attr.aria-label]="'Ajouter un exemplaire de ' + line.product.name" [disabled]="line.quantity >= line.product.stockQuantity" (click)="changeQuantity(line.product, 1)">+</button>
+              </div>
+              <strong>{{ line.product.price * line.quantity | currency:'MAD':'code' }}</strong>
+            </div>
+          } @empty {
+            <p>Ton panier est vide.</p>
+            <button type="button" class="primary" (click)="show('products')">Voir les produits</button>
+          }
+        </section>
+        @if (count()) {
+          <aside class="store-panel basket-summary">
+            <h2>Récapitulatif</h2>
+            <p>{{ count() }} {{ count() === 1 ? 'article' : 'articles' }}</p>
+            <div class="summary-total"><span>Total</span><strong>{{ total() | currency:'MAD':'code' }}</strong></div>
+            <button type="button" class="primary" [disabled]="busy()" (click)="beginCheckout()">Commander</button>
+          </aside>
+        }
+        </div>
+      }
+      @case ('checkout') {
+        <ol class="checkout-steps" aria-label="Étapes de commande">
+          <li aria-current="step"><span>1</span> Livraison et récapitulatif</li><li><span>2</span> Paiement</li>
+        </ol>
+        <div class="store-title"><h1>Récapitulatif de la commande</h1></div>
+        <section class="store-panel">
+          @for (line of basket(); track line.product.id) {
+            <div class="basket-line"><span>{{ line.quantity }} × {{ line.product.name }}</span><strong>{{ line.product.price * line.quantity | currency:'MAD':'code' }}</strong></div>
+          }
+          <p><strong>Total estimé {{ total() | currency:'MAD':'code' }}</strong></p>
+          <form [formGroup]="checkout" (ngSubmit)="placeOrder()">
+            <label>Adresse de livraison
+              <textarea formControlName="shippingAddress" name="shippingAddress" autocomplete="street-address" rows="3" maxlength="500" required></textarea>
+            </label>
+            <fieldset class="payment-methods">
+              <legend>Mode de paiement</legend>
+              <label>
+                <input type="radio" formControlName="paymentMethod" value="CARD">
+                <span><strong>Carte bancaire</strong><small>Paiement simulé, sans coordonnées bancaires.</small></span>
+              </label>
+              <label>
+                <input type="radio" formControlName="paymentMethod" value="CASH_ON_DELIVERY">
+                <span><strong>Paiement à la livraison</strong><small>Montant à régler à la réception.</small></span>
+              </label>
+            </fieldset>
+            <button class="primary" type="submit" [disabled]="busy() || checkout.invalid || !count()">Confirmer la commande</button>
+          </form>
+        </section>
+      }
+      @case ('payment') {
+        @if (currentOrder(); as order) {
+          <ol class="checkout-steps" aria-label="Étapes de commande">
+            <li><span>1</span> Livraison et récapitulatif</li><li aria-current="step"><span>2</span> Paiement</li>
+          </ol>
+          <div class="store-title"><h1>Commande n° {{ order.id }}</h1></div>
+          <div role="status">
+            @if (order.status === 'CONFIRMED' && !canPay(order)) {
+              <div class="order-confirmation">
+                <span class="order-confirmation-icon" aria-hidden="true">✓</span>
+                <div>
+                  @if (order.paymentMethod === 'CASH_ON_DELIVERY') {
+                    <strong>Commande n° {{ order.id }} confirmée</strong>
+                    <p>{{ order.totalAmount | currency:'MAD':'code' }} à régler à la livraison.</p>
+                  } @else {
+                    <strong>Paiement confirmé pour la commande n° {{ order.id }}</strong>
+                    <p>La simulation est terminée. Aucun montant n’a été débité.</p>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+          <div class="payment-layout">
+            <section class="store-panel basket-summary payment-summary" aria-labelledby="payment-method-title">
+              <div class="payment-heading">
+                <h2 id="payment-method-title">
+                  {{ order.paymentMethod === 'CASH_ON_DELIVERY' ? 'Paiement à la livraison' : 'Paiement par carte bancaire' }}
+                </h2>
+                @if (order.paymentMethod !== 'CASH_ON_DELIVERY') {
+                  <span class="payment-logo" role="img" aria-label="CMI"></span>
+                }
+              </div>
+              @if (order.status === 'CANCELLED') {
+                <p role="status"><strong>Commande annulée</strong></p>
+              } @else if (canPay(order)) {
+                <p role="status">{{ busy() ? 'Simulation en cours…' : 'Mode démonstration · Aucun débit' }}</p>
+              }
+              @if (canPay(order) && payment()?.status !== 'FAILED') {
+                <div class="demo-card-fields" role="group" aria-label="Carte bancaire fictive">
+                  <label>Nom du titulaire
+                    <input type="text" readonly [value]="demoCardReady() ? 'CLIENT NOVASTORE' : ''" placeholder="Nom sur la carte">
+                  </label>
+                  <label>Numéro de carte
+                    <input type="text" readonly [value]="demoCardReady() ? '4242 4242 4242 4242' : ''" placeholder="0000 0000 0000 0000">
+                  </label>
+                  <div class="demo-card-details">
+                    <label>Date d’expiration
+                      <input type="text" readonly [value]="demoCardReady() ? '12 / 30' : ''" placeholder="MM / AA">
+                    </label>
+                    <label>Code de sécurité
+                      <input type="text" readonly [value]="demoCardReady() ? '123' : ''" placeholder="CVC">
+                    </label>
+                  </div>
+                  <button class="demo-card-fill" type="button" [disabled]="demoCardReady() || busy()" (click)="demoCardReady.set(true)">
+                    {{ demoCardReady() ? 'Carte de test chargée' : 'Utiliser une carte de test' }}
+                  </button>
+                </div>
+              }
+              <div class="summary-total">
+                <span>{{ order.paymentMethod === 'CASH_ON_DELIVERY' && order.status !== 'CANCELLED' ? 'À régler à la livraison' : 'Total de la commande' }}</span>
+                <strong>{{ order.totalAmount | currency:'MAD':'code' }}</strong>
+              </div>
+              @if (shopError(); as message) { <p class="error" role="alert">{{ message }}</p> }
+              @if (canPay(order) && payment()?.status !== 'FAILED') {
+                <button class="primary" type="button" [disabled]="busy() || !demoCardReady()" (click)="pay()">
+                  @if (busy()) {
+                    Simulation en cours…
+                  } @else if (shopError() || order.status === 'CONFIRMED') {
+                    Reprendre le paiement
+                  } @else {
+                    Payer {{ order.totalAmount | currency:'MAD':'code' }} · Démo
+                  }
+                </button>
+              } @else {
+                <button class="primary" type="button" [disabled]="busy()" (click)="loadOrders()">Voir mes commandes</button>
+              }
+            </section>
+            <section class="store-panel payment-summary" aria-labelledby="payment-summary-title">
+              <h2 id="payment-summary-title">Récapitulatif de la commande</h2>
+              <ul class="payment-items">
+                @for (item of order.items; track item.id) {
+                  <li class="basket-line">
+                    <div>
+                      <strong>{{ item.productName }}</strong>
+                      <p>{{ item.quantity }} × {{ item.unitPrice | currency:'MAD':'code' }}</p>
+                    </div>
+                    <strong>{{ item.subtotal | currency:'MAD':'code' }}</strong>
+                  </li>
+                }
+              </ul>
+              <h3>Adresse de livraison</h3>
+              <p class="payment-address">{{ order.shippingAddress || 'Adresse non renseignée' }}</p>
+            </section>
+          </div>
+        }
+      }
+      @case ('orders') {
+        <button type="button" class="store-back" [disabled]="busy()" (click)="backFromOrders()">
+          <span aria-hidden="true">←</span> Retour
+        </button>
+        <div class="store-title"><h1>Mes commandes</h1></div>
+        <section class="store-panel">
+          @if (busy()) { <p role="status">Chargement des commandes…</p> }
+          @else {
+            @for (order of orders(); track order.id) {
+              <div class="basket-line">
+                <div>
+                  <h2>Commande n° {{ order.id }}</h2>
+                  <p>
+                    {{ order.paymentMethod === 'CASH_ON_DELIVERY' && order.status === 'CONFIRMED'
+                      ? 'Confirmée · À régler à la livraison' : orderLabels[order.status] }}
+                  </p>
+                  @for (item of order.items; track $index) {
+                    <p>{{ item.quantity }} × {{ item.productName }}</p>
+                  }
+                </div>
+                <strong>{{ order.totalAmount | currency:'MAD':'code' }}</strong>
+                @if (canPay(order)) {
+                  <button class="primary" type="button" (click)="openOrder(order)">Reprendre le paiement</button>
+                } @else if (order.paymentMethod === 'CASH_ON_DELIVERY') {
+                  <button class="primary" type="button" (click)="openOrder(order)">Voir la commande</button>
+                }
+              </div>
+            } @empty {
+              @if (!shopError()) { <p>Tu n’as encore passé aucune commande.</p> }
+            }
+          }
+        </section>
+      }
+    }
+    @if (shopError() && screen() !== 'payment') { <p class="error" role="alert">{{ shopError() }}</p> }
+  </main>
+}
+<footer class="store-footer"><span class="brand">NovaStore</span><span>Français · MAD</span></footer>
 

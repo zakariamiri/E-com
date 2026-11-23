@@ -19,11 +19,22 @@ public class AuthEventReceipt {
     }
 
     public boolean record(String eventId) {
+        return record(eventId, null);
+    }
+
+    public boolean record(String eventId, Long orderId) {
+        return recordAndProcess(eventId, orderId, () -> {});
+    }
+
+    public boolean recordAndProcess(String eventId, Long orderId, Runnable process) {
         try {
-            transactions.executeWithoutResult(status -> jdbc.update("""
-                    INSERT INTO processed_notifications (event_id, order_id, processed_at)
-                    VALUES (?, NULL, CURRENT_TIMESTAMP)
-                    """, eventId));
+            transactions.executeWithoutResult(status -> {
+                jdbc.update("""
+                        INSERT INTO processed_notifications (event_id, order_id, processed_at)
+                        VALUES (?, ?, CURRENT_TIMESTAMP)
+                        """, eventId, orderId);
+                process.run();
+            });
             return true;
         } catch (DuplicateKeyException duplicate) {
             return false;
