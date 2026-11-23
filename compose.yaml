@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: ${NOVASTORE_POSTGRES_ADMIN_PASSWORD:?Renseigne NOVASTORE_POSTGRES_ADMIN_PASSWORD dans .env}
+      AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD:?Renseigne AUTH_DB_PASSWORD dans .env}
+      PAYMENT_DB_PASSWORD: ${PAYMENT_DB_PASSWORD:?Renseigne PAYMENT_DB_PASSWORD dans .env}
+    ports:
+      - "127.0.0.1:${NOVASTORE_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-novastore.sql:ro
+      - ./Payment-service/Payment-service/src/main/resources/db/payment-v6.sql:/opt/novastore/payment-v6.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "paymentdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  rabbitmq:
+    image: rabbitmq:4-management
+    hostname: novastore-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-novastore}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Renseigne RABBITMQ_PASSWORD dans .env}
+    ports:
+      - "127.0.0.1:${NOVASTORE_RABBITMQ_PORT:-5673}:5672"
+      - "127.0.0.1:${NOVASTORE_RABBITMQ_MANAGEMENT_PORT:-15673}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
